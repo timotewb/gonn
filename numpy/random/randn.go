@@ -11,6 +11,6 @@ func Randn(args ...int) {
 	case 2:
 		fmt.Println("2 Argument passed.")
 	default:
-		fmt.Printf("%d integers were passed (Under development): %v\n", len(args), args)
+		fmt.Printf("%d integers were passed: %v\n", len(args), args)
 	}
 }
