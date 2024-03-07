@@ -25,6 +25,8 @@ func CheckIsSliceOfType(t reflect.Type, c reflect.Kind) bool {
 	if elemType.Kind() == reflect.Slice {
 		// Check if the element is of type `c`
 		return elemType.Elem().Kind() == c
+	} else if elemType.Kind() == reflect.Float64 {
+		return true
 	}
 	return false
 }
@@ -63,4 +65,26 @@ func CheckSlicesOfSameShape(x, y reflect.Value) bool {
 		}
 	}
 	return true
+}
+
+// GetSliceShape returns the shape of a multidimensional slice as a slice of integers.
+// Each integer in the returned slice represents the length of a dimension.
+// If the input is not a slice, it returns nil.
+func GetSliceShape(slice interface{}) []int {
+	v := reflect.ValueOf(slice)
+	if v.Kind() != reflect.Slice {
+		return nil
+	}
+	return getSliceShapeRecursive(v)
+}
+
+func getSliceShapeRecursive(v reflect.Value) []int {
+	shape := []int{v.Len()}
+	if v.Len() > 0 && v.Index(0).Kind() == reflect.Slice {
+		subShape := getSliceShapeRecursive(v.Index(0))
+		if subShape != nil {
+			shape = append(shape, subShape...)
+		}
+	}
+	return shape
 }

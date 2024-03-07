@@ -28,7 +28,7 @@ import (
 // Returns:
 // - interface: float64, slice, slice of slice(s)
 func Multiply(x interface{}, y interface{}) interface{} {
-	// 0 = invalide type
+	// 0 = invalid type
 	// 1 = slice of float64
 	// 2 = single float64
 	var xType int
@@ -39,6 +39,7 @@ func Multiply(x interface{}, y interface{}) interface{} {
 		xType = 2
 	} else {
 		log.Fatal("Error: x must be a slice of float64 or a single float64 number")
+		return nil
 	}
 	if app.CheckIsSliceOfType(reflect.TypeOf(y), reflect.Float64) {
 		yType = 1
@@ -46,16 +47,17 @@ func Multiply(x interface{}, y interface{}) interface{} {
 		yType = 2
 	} else {
 		log.Fatal("Error: y must be a slice of float64 or a single float64 number")
+		return nil
 	}
 
-	if !app.CheckSlicesOfSameShape(reflect.ValueOf(x), reflect.ValueOf(y)) {
-		log.Fatal("Error: x and y must be the same shape.")
-	}
-
-	// continue to process
-	// if x or y is a single float
+	// process
 	if xType == 1 && yType == 1 {
-		return matrixByMatrix(x, y)
+		if !app.CheckSlicesOfSameShape(reflect.ValueOf(x), reflect.ValueOf(y)) {
+			log.Fatal("Error: x and y must be the same shape.")
+			return nil
+		} else {
+			return matrixByMatrix(x, y)
+		}
 	} else if xType == 1 && yType == 2 {
 		return float64ByMatrix(y.(float64), x)
 	} else if xType == 2 && yType == 1 {
