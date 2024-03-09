@@ -21,18 +21,47 @@ func Dot(x, y interface{}) interface{} {
 		log.Fatal("Error: y must be a slice of float64 or a single float64 number")
 	}
 
+	// Check if inputs are 1D slices (array)
+	if reflect.TypeOf(x).String() == "[]float64" && reflect.TypeOf(y).String() == "[]float64" {
+		return multiplyArray(x, y)
+	}
+
 	// Check if inputs are 2D slices (matrices)
-	if reflect.TypeOf(x).String() == "[][]float64" {
+	if reflect.TypeOf(x).String() == "[][]float64" && reflect.TypeOf(y).String() == "[][]float64" {
 		return multiplyMatrices(x, y)
 	}
 
 	// Check if inputs are 3D slices (tensors)
-	if reflect.TypeOf(x).String() == "[][][]float64" {
+	if reflect.TypeOf(x).String() == "[][][]float64" && reflect.TypeOf(y).String() == "[][][]float64" {
 		return multiplyMatrices(x, y)
 	}
 
-	log.Fatalf("Error: unsupported shape, %v\n", reflect.TypeOf(x).String())
+	log.Fatalf("Error: unsupported shape combination.\n\tx: %v\n\ty: %v", reflect.TypeOf(x).String(), reflect.TypeOf(y).String())
 	return make([]float64, 1)
+}
+
+func multiplyArray(x, y interface{}) interface{} {
+
+	xType := reflect.TypeOf(x)
+	yType := reflect.TypeOf(y)
+	xShape := fmt.Sprintf("%v", reflect.ValueOf(x).Len())
+	yShape := fmt.Sprintf("%v", reflect.ValueOf(y).Len())
+
+	if xType == yType && xShape == yShape {
+		// convert x and y to a reflect.Value
+		xVal := reflect.ValueOf(x)
+		yVal := reflect.ValueOf(y)
+
+		// define result float64
+		var r float64
+		for i := 0; i < xVal.Len(); i++ {
+			r = r + (xVal.Index(i).Float() * yVal.Index(i).Float())
+		}
+		return r
+	} else {
+		log.Fatalf("Error: x and y must be of type slice and the same shape.\n\tx: %v, %v \n\ty: %v, %v", xType, xShape, yType, yShape)
+		return 0.
+	}
 }
 
 // multiplyMatrices performs matrix multiplication on two 2D slices.
