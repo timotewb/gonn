@@ -6,6 +6,7 @@ import (
 
 // CheckIsSliceOfType checks if the provided type is a slice of a specific kind.
 // It returns true if the type is a slice and its element type matches the specified kind, false otherwise.
+// This function now supports multi-dimensional slices of variable dimensions.
 //
 // This function is used to ensure that inputs to the Multiply function are of type slice and contain
 // only float64 values.
@@ -16,19 +17,21 @@ import (
 //
 // Returns:
 // - bool: True if the type is a slice and its element type matches the specified kind, false otherwise.
-func CheckIsSliceOfType(t reflect.Type, c reflect.Kind) bool {
+func CheckIsSliceOfType(x interface{}, c reflect.Kind) bool {
+	xVal := reflect.ValueOf(x)
+	xType := reflect.TypeOf(x)
+
 	// Check if `t` is a slice
-	if t.Kind() != reflect.Slice {
+	if xType.Kind() == reflect.Slice {
+		for i := 0; i < xVal.Len(); i++ {
+			if !CheckIsSliceOfType(xVal.Index(i).Interface(), c) {
+				return false
+			}
+		}
+	} else if xType.Kind() != c {
 		return false
 	}
-	elemType := t.Elem()
-	if elemType.Kind() == reflect.Slice {
-		// Check if the element is of type `c`
-		return elemType.Elem().Kind() == c
-	} else if elemType.Kind() == reflect.Float64 {
-		return true
-	}
-	return false
+	return true
 }
 
 // CheckSlicesOfSameShape checks if two slices have the same shape, including their dimensions and the

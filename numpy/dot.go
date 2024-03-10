@@ -14,13 +14,6 @@ import (
 // 2 = single float64
 func Dot(x, y interface{}) (interface{}, error) {
 
-	if !app.CheckIsSliceOfType(reflect.TypeOf(x), reflect.Float64) && !(reflect.TypeOf(x) == reflect.TypeOf(float64(0))) {
-		log.Fatal("Error: x must be a slice of float64 or a single float64 number")
-	}
-	if !app.CheckIsSliceOfType(reflect.TypeOf(y), reflect.Float64) && !(reflect.TypeOf(y) == reflect.TypeOf(float64(0))) {
-		log.Fatal("Error: y must be a slice of float64 or a single float64 number")
-	}
-
 	// Check if inputs are 1D slices (array)
 	if reflect.TypeOf(x).String() == "[]float64" && reflect.TypeOf(y).String() == "[]float64" {
 		return multiplyArray(x, y)
@@ -32,15 +25,15 @@ func Dot(x, y interface{}) (interface{}, error) {
 	}
 
 	// Check if inputs are 3D slices (tensors)
-	if reflect.TypeOf(x).String() == "[][][]float64" && reflect.TypeOf(y).String() == "[][][]float64" {
+	if reflect.TypeOf(x).String() == "testing" && reflect.TypeOf(y).String() == "testing" {
 		return multiplyTensors(x, y)
 	}
 
-	log.Fatalf("Error: unsupported shape combination.\n\tx: %v\n\ty: %v", reflect.TypeOf(x).String(), reflect.TypeOf(y).String())
-	return 0., nil
+	return 0., fmt.Errorf("input combination of x (%v) and y (%v) is not supported", reflect.TypeOf(x).String(), reflect.TypeOf(y).String())
 }
 
 func multiplyArray(x, y interface{}) (interface{}, error) {
+	fmt.Println("multiplyArray()")
 
 	xType := reflect.TypeOf(x)
 	yType := reflect.TypeOf(y)
@@ -65,6 +58,8 @@ func multiplyArray(x, y interface{}) (interface{}, error) {
 
 // multiplyMatrices performs matrix multiplication on two 2D slices.
 func multiplyMatrices(x, y interface{}) (interface{}, error) {
+	fmt.Println("multiplyMatrices()")
+
 	a := reflect.ValueOf(x)
 	b := reflect.ValueOf(y)
 
@@ -92,9 +87,15 @@ func multiplyMatrices(x, y interface{}) (interface{}, error) {
 
 // multiplyTensors performs a series of matrix multiplications across the third dimension of two 3D slices.
 func multiplyTensors(x, y interface{}) (interface{}, error) {
+	fmt.Println("multiplyTensors()")
+
 	a := reflect.ValueOf(x)
 	b := reflect.ValueOf(y)
-	// Assuming a and b are 3D slices with the same dimensions
+
+	// x and y must both be 3D and have the same shape
+	if a.Len() != b.Len() || a.Index(0).Len() != b.Index(0).Len() || a.Index(0).Index(0).Len() != b.Index(0).Index(0).Len() {
+		return 0., fmt.Errorf("x and y must both be 3D and have the same shape")
+	}
 	dim1 := a.Len()
 	dim2 := a.Index(0).Len()
 	dim3 := a.Index(0).Index(0).Len()
@@ -106,9 +107,9 @@ func multiplyTensors(x, y interface{}) (interface{}, error) {
 			result[i][j] = make([]float64, dim3)
 			for k := 0; k < dim3; k++ {
 				// Perform matrix multiplication for each matrix in the third dimension
-				matrixA := a.Index(i).Index(j)
-				matrixB := b.Index(i).Index(j)
-				resultMatrix, err := multiplyMatrices(matrixA, matrixB)
+				matrixA := a.Index(i).Index(j).Interface()
+				matrixB := b.Index(i).Index(j).Interface()
+				resultMatrix, err := multiplyArray(matrixA, matrixB)
 				if err != nil {
 					return 0., err
 				}
