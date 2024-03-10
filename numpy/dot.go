@@ -12,7 +12,7 @@ import (
 // It supports 2D slices (matrices) and 3D slices (tensors).
 // 1 = slice of float64
 // 2 = single float64
-func Dot(x, y interface{}) interface{} {
+func Dot(x, y interface{}) (interface{}, error) {
 
 	if !app.CheckIsSliceOfType(reflect.TypeOf(x), reflect.Float64) && !(reflect.TypeOf(x) == reflect.TypeOf(float64(0))) {
 		log.Fatal("Error: x must be a slice of float64 or a single float64 number")
@@ -33,14 +33,14 @@ func Dot(x, y interface{}) interface{} {
 
 	// Check if inputs are 3D slices (tensors)
 	if reflect.TypeOf(x).String() == "[][][]float64" && reflect.TypeOf(y).String() == "[][][]float64" {
-		return multiplyMatrices(x, y)
+		return multiplyTensors(x, y)
 	}
 
 	log.Fatalf("Error: unsupported shape combination.\n\tx: %v\n\ty: %v", reflect.TypeOf(x).String(), reflect.TypeOf(y).String())
-	return make([]float64, 1)
+	return 0., nil
 }
 
-func multiplyArray(x, y interface{}) interface{} {
+func multiplyArray(x, y interface{}) (interface{}, error) {
 
 	xType := reflect.TypeOf(x)
 	yType := reflect.TypeOf(y)
@@ -57,15 +57,14 @@ func multiplyArray(x, y interface{}) interface{} {
 		for i := 0; i < xVal.Len(); i++ {
 			r = r + (xVal.Index(i).Float() * yVal.Index(i).Float())
 		}
-		return r
+		return r, nil
 	} else {
-		log.Fatalf("Error: x and y must be of type slice and the same shape.\n\tx: %v, %v \n\ty: %v, %v", xType, xShape, yType, yShape)
-		return 0.
+		return 0., fmt.Errorf("x and y must be of type slice and the same shape.\n\tx: %v, %v \n\ty: %v, %v", xType, xShape, yType, yShape)
 	}
 }
 
 // multiplyMatrices performs matrix multiplication on two 2D slices.
-func multiplyMatrices(x, y interface{}) interface{} {
+func multiplyMatrices(x, y interface{}) (interface{}, error) {
 	a := reflect.ValueOf(x)
 	b := reflect.ValueOf(y)
 
@@ -75,7 +74,7 @@ func multiplyMatrices(x, y interface{}) interface{} {
 	colsB := b.Index(0).Len()
 
 	if colsA != rowsB {
-		log.Fatal("Error: Number of columns in the first matrix must equal the number of rows in the second matrix.")
+		return 0., fmt.Errorf("number of columns in the first matrix must equal the number of rows in the second matrix")
 	}
 
 	result := make([][]float64, rowsA)
@@ -88,11 +87,11 @@ func multiplyMatrices(x, y interface{}) interface{} {
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 // multiplyTensors performs a series of matrix multiplications across the third dimension of two 3D slices.
-func multiplyTensors(x, y reflect.Value) interface{} {
+func multiplyTensors(x, y interface{}) (interface{}, error) {
 	a := reflect.ValueOf(x)
 	b := reflect.ValueOf(y)
 	// Assuming a and b are 3D slices with the same dimensions
@@ -109,14 +108,17 @@ func multiplyTensors(x, y reflect.Value) interface{} {
 				// Perform matrix multiplication for each matrix in the third dimension
 				matrixA := a.Index(i).Index(j)
 				matrixB := b.Index(i).Index(j)
-				resultMatrix := multiplyMatrices(matrixA, matrixB)
+				resultMatrix, err := multiplyMatrices(matrixA, matrixB)
+				if err != nil {
+					return 0., err
+				}
 				// Assuming resultMatrix is a 2D slice, convert it back to [][]float64
 				result[i][j] = resultMatrix.([]float64)
 			}
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 func dotProduct(x interface{}, y interface{}) interface{} {
