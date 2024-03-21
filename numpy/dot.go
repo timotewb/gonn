@@ -2,16 +2,11 @@ package numpy
 
 import (
 	"fmt"
-	"log"
 	"reflect"
-
-	"github.com/timotewb/gonn/app"
 )
 
-// dotProduct performs a dot product operation on two slices.
-// It supports 2D slices (matrices) and 3D slices (tensors).
-// 1 = slice of float64
-// 2 = single float64
+// Dot performs dot product operations on two inputs, which can be 1D slices, 2D slices,
+// or a single float and a multidimensional slice.
 func Dot(x, y interface{}) (interface{}, error) {
 
 	// Check if inputs are 1D slices (array)
@@ -29,9 +24,61 @@ func Dot(x, y interface{}) (interface{}, error) {
 		return multiplyTensors(x, y)
 	}
 
+	// Check if x or y is a single float
+	if reflect.TypeOf(x).String() == "float64" || reflect.TypeOf(y).String() == "float64" {
+		return multiplyFloat(x, y)
+	}
+
 	return 0., fmt.Errorf("input combination of x (%v) and y (%v) is not supported", reflect.TypeOf(x).String(), reflect.TypeOf(y).String())
 }
 
+// multiplyFloat multiplies a single float value with each element in a multidimensional slice.
+// It supports both x and y being the float, and the other being the slice.
+func multiplyFloat(x, y interface{}) (interface{}, error) {
+	fmt.Println("multiplyFloat()")
+
+	// Determine which input is the float and which is the slice
+	var floatVal float64
+	var sliceVal reflect.Value
+	if reflect.TypeOf(x).Kind() == reflect.Float64 {
+		floatVal = x.(float64)
+		sliceVal = reflect.ValueOf(y)
+	} else if reflect.TypeOf(y).Kind() == reflect.Float64 {
+		floatVal = y.(float64)
+		sliceVal = reflect.ValueOf(x)
+	} else {
+		return nil, fmt.Errorf("one of the inputs must be a float64")
+	}
+
+	// Check if the slice is a multidimensional slice
+	if sliceVal.Kind() != reflect.Slice {
+		return nil, fmt.Errorf("the other input must be a multidimensional slice")
+	}
+
+	// Initialize a new slice to hold the result
+	result := make([]interface{}, sliceVal.Len())
+
+	// Iterate over the slice and multiply each element by the float
+	for i := 0; i < sliceVal.Len(); i++ {
+		element := sliceVal.Index(i)
+		if element.Kind() == reflect.Float64 {
+			result[i] = element.Float() * floatVal
+		} else if element.Kind() == reflect.Slice {
+			// Handle multidimensional slices
+			subSlice := make([]float64, element.Len())
+			for j := 0; j < element.Len(); j++ {
+				subSlice[j] = element.Index(j).Float() * floatVal
+			}
+			result[i] = subSlice
+		} else {
+			return nil, fmt.Errorf("unsupported slice element type: %v", element.Kind())
+		}
+	}
+
+	return result, nil
+}
+
+// multiplyArray performs element-wise multiplication of two 1D slices of the same length.
 func multiplyArray(x, y interface{}) (interface{}, error) {
 	fmt.Println("multiplyArray()")
 
@@ -121,101 +168,3 @@ func multiplyTensors(x, y interface{}) (interface{}, error) {
 
 	return result, nil
 }
-
-func dotProduct(x interface{}, y interface{}) interface{} {
-	// 0 = invalid type
-	// 1 = slice of float64
-	// 2 = single float64
-	var xType int
-	var yType int
-	if app.CheckIsSliceOfType(reflect.TypeOf(x), reflect.Float64) {
-		xType = 1
-	} else if reflect.TypeOf(x) == reflect.TypeOf(float64(0)) {
-		xType = 2
-	} else {
-		log.Fatal("Error: x must be a slice of float64 or a single float64 number")
-	}
-	if app.CheckIsSliceOfType(reflect.TypeOf(y), reflect.Float64) {
-		yType = 1
-	} else if reflect.TypeOf(y) == reflect.TypeOf(float64(0)) {
-		yType = 2
-	} else {
-		log.Fatal("Error: y must be a slice of float64 or a single float64 number")
-	}
-
-	// process
-	if xType == 1 && yType == 1 {
-		xShape := app.GetSliceShape(x)
-		yShape := app.GetSliceShape(y)
-		if len(xShape) < 3 && len(yShape) < 3 {
-
-			if xShape[len(xShape)-1] != yShape[0] {
-				log.Fatalf("Error: x and y must have compatible shape. \n\tx: %v \n\ty: %v", xShape, yShape)
-			}
-
-			if len(xShape) == 1 && len(yShape) == 1 {
-				return rankOne(x, y)
-			}
-
-			// return rankTwo(x, y, xShape, yShape)
-
-		} else {
-			log.Fatalf("Error: Functionality not yet implemented.")
-		}
-		return nil
-	} else if xType == 1 && yType == 2 {
-		return Multiply(y, x)
-	} else if xType == 2 && yType == 1 {
-		return Multiply(x, y)
-	} else if xType == 2 && yType == 2 {
-		return Multiply(x, y)
-	} else {
-		return nil
-	}
-}
-
-// rankOne multiplies two single dimension slices in the same way numpy.dot() functions.
-
-func rankOne(x, y interface{}) float64 {
-
-	xType := reflect.TypeOf(x)
-	yType := reflect.TypeOf(y)
-	xShape := fmt.Sprintf("%v", reflect.ValueOf(x).Len())
-	yShape := fmt.Sprintf("%v", reflect.ValueOf(y).Len())
-
-	if xType == yType && xShape == yShape {
-		// convert x and y to a reflect.Value
-		xVal := reflect.ValueOf(x)
-		yVal := reflect.ValueOf(y)
-
-		// define result float64
-		var r float64
-		for i := 0; i < xVal.Len(); i++ {
-			r = r + (xVal.Index(i).Float() * yVal.Index(i).Float())
-		}
-		return r
-	} else {
-		log.Fatalf("Error: x and y must be of type slice and the same shape.\n\tx: %v, %v \n\ty: %v, %v", xType, xShape, yType, yShape)
-		return 0.
-	}
-}
-
-// func rankTwo(x, y interface{}, xShape, yShape []int) interface{} {
-// 	fmt.Print("rankN()\n")
-// 	if xShape[0] == 1 {
-// 		var r []float64
-// 	} else {
-// 		var r [][]float64
-// 	}
-
-// 	// convert x and y to a reflect.Value
-// 	xVal := reflect.ValueOf(x)
-// 	// yVal := reflect.ValueOf(y)
-
-// 	// for each array of inputs in x
-// 	for i := 0; i <= xShape[0]; i++ {
-// 		fmt.Print(xVal.Index(i))
-// 	}
-
-// 	return r
-// }
