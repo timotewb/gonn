@@ -64,12 +64,7 @@ func multiplyFloat(x, y interface{}) (interface{}, error) {
 		if element.Kind() == reflect.Float64 {
 			result[i] = element.Float() * floatVal
 		} else if element.Kind() == reflect.Slice {
-			// Handle multidimensional slices
-			subSlice := make([]float64, element.Len())
-			for j := 0; j < element.Len(); j++ {
-				subSlice[j] = element.Index(j).Float() * floatVal
-			}
-			result[i] = subSlice
+			result[i], _ = multiplyFloat(element.Interface(), floatVal)
 		} else {
 			return nil, fmt.Errorf("unsupported slice element type: %v", element.Kind())
 		}
