@@ -19,6 +19,11 @@ func Dot(x, y interface{}) (interface{}, error) {
 		return multiplyMatrices(x, y)
 	}
 
+	// Check if inputs are 3D slices (matrices)
+	if reflect.TypeOf(x).String() == "[][]float64" && reflect.TypeOf(y).String() == "[][][]float64" {
+		return multiplyTensorByMatrix(x, y)
+	}
+
 	// Check if inputs are 3D slices (tensors)
 	if reflect.TypeOf(x).String() == "testing" && reflect.TypeOf(y).String() == "testing" {
 		return multiplyTensors(x, y)
@@ -75,7 +80,6 @@ func multiplyFloat(x, y interface{}) (interface{}, error) {
 
 // multiplyArray performs element-wise multiplication of two 1D slices of the same length.
 func multiplyArray(x, y interface{}) (interface{}, error) {
-	fmt.Println("multiplyArray()")
 
 	xType := reflect.TypeOf(x)
 	yType := reflect.TypeOf(y)
@@ -100,7 +104,6 @@ func multiplyArray(x, y interface{}) (interface{}, error) {
 
 // multiplyMatrices performs matrix multiplication on two 2D slices.
 func multiplyMatrices(x, y interface{}) (interface{}, error) {
-	fmt.Println("multiplyMatrices()")
 
 	a := reflect.ValueOf(x)
 	b := reflect.ValueOf(y)
@@ -129,7 +132,6 @@ func multiplyMatrices(x, y interface{}) (interface{}, error) {
 
 // multiplyTensors performs a series of matrix multiplications across the third dimension of two 3D slices.
 func multiplyTensors(x, y interface{}) (interface{}, error) {
-	fmt.Println("multiplyTensors()")
 
 	a := reflect.ValueOf(x)
 	b := reflect.ValueOf(y)
@@ -157,6 +159,36 @@ func multiplyTensors(x, y interface{}) (interface{}, error) {
 				}
 				// Assuming resultMatrix is a 2D slice, convert it back to [][]float64
 				result[i][j] = resultMatrix.([]float64)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func multiplyTensorByMatrix(x, y interface{}) (interface{}, error) {
+
+	a := reflect.ValueOf(y)
+	b := reflect.ValueOf(x)
+
+	dim1 := a.Len()
+	dim2 := a.Index(0).Len()
+	dim3 := a.Index(0).Index(0).Len()
+
+	result := make([][][]float64, dim1)
+	for i := 0; i < dim1; i++ {
+		result[i] = make([][]float64, dim2)
+		for j := 0; j < dim2; j++ {
+			result[i][j] = make([]float64, dim3)
+			for k := 0; k < dim3; k++ {
+				// Perform matrix multiplication for each matrix in the third dimension
+				matrixA := a.Index(i).Index(j).Interface()
+				matrixB := b.Index(i).Interface()
+				fmt.Println(matrixA)
+				fmt.Println(matrixB)
+				fmt.Println("")
+				// Assuming resultMatrix is a 2D slice, convert it back to [][]float64
+				result[i][j] = nil
 			}
 		}
 	}
