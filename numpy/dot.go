@@ -3,15 +3,28 @@ package numpy
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/timotewb/gonn/numpy/custom"
+	"github.com/timotewb/gonn/numpy/custom/logicfunctions"
 )
 
 // Dot performs dot product operations on two inputs, which can be 1D slices, 2D slices,
 // or a single float and a multidimensional slice.
 func Dot(x, y interface{}) (interface{}, error) {
 
+	// Check if inputs are either slice or float
+	if reflect.TypeOf(x).Kind() == reflect.Slice || reflect.TypeOf(x).Kind() == reflect.Float64 {
+
+	}
+
 	// Check if inputs are 1D slices (array)
 	if reflect.TypeOf(x).String() == "[]float64" && reflect.TypeOf(y).String() == "[]float64" {
 		return multiplyArray(x, y)
+	}
+
+	// Check if inputs are 2D slices (matrices)  and a slice (array)
+	if reflect.TypeOf(x).Kind() == reflect.Slice && reflect.TypeOf(y).String() == "[]float64" {
+		return multiplyAnyDimSliceBySlice(x, y)
 	}
 
 	// Check if inputs are 2D slices (matrices)
@@ -76,6 +89,75 @@ func multiplyFloat(x, y interface{}) (interface{}, error) {
 	}
 
 	return result, nil
+}
+
+func multiplyAnyDimSliceBySlice(x, y interface{}) (interface{}, error) {
+
+	xVal := reflect.ValueOf(x)
+	yVal := reflect.ValueOf(y)
+	xType := reflect.TypeOf(x)
+	yType := reflect.TypeOf(y)
+
+	xShape, err := custom.Shape(x)
+	if err != nil {
+		return nil, err
+	}
+	yShape, err := custom.Shape(y)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("xType %v\n", xType)
+	fmt.Printf("yType %v\n", yType)
+	fmt.Printf("xShape %v\n", xShape)
+	fmt.Printf("yShape %v\n", yShape)
+
+	// check compatibility
+	_, err = logicfunctions.ShapeCompatible(xShape, yShape)
+	if err != nil {
+		return 0., err
+	}
+
+	// create output slice
+	result := createMultiDimSlice(reflect.ValueOf(xShape).Len() - 1)
+
+	return loopOverAnyDimSlice(xVal, yVal, &result)
+	// return 0., nil
+}
+
+func loopOverAnyDimSlice(x, y reflect.Value, r interface{}) (interface{}, error) {
+
+	// check first item
+	if x.Index(0).Kind() == reflect.Slice {
+		for i := 0; i < x.Len(); i++ {
+			return loopOverAnyDimSlice(x.Index(i), y, &r)
+		}
+	} else {
+		for i := 0; i < x.Len(); i++ {
+			// but where are we in the result array/dimension?????
+		}
+	}
+
+	return 0., nil
+}
+
+// createMultiDimSlice creates a multi-dimensional slice of float64 with the specified number of dimensions.
+func createMultiDimSlice(dimensions int) interface{} {
+	if dimensions <= 0 {
+		return nil
+	}
+
+	// Create a slice of float64 for the last dimension
+	if dimensions == 1 {
+		return []float64{}
+	}
+
+	// Recursively create a slice of the next dimension
+	nextDimension := createMultiDimSlice(dimensions - 1)
+
+	// Create a slice of the current dimension, filled with the next dimension's slices
+	sliceType := reflect.SliceOf(reflect.TypeOf(nextDimension))
+	return reflect.MakeSlice(sliceType, 0, 0).Interface()
 }
 
 // multiplyArray performs element-wise multiplication of two 1D slices of the same length.
@@ -194,4 +276,76 @@ func multiplyTensorByMatrix(x, y interface{}) (interface{}, error) {
 	}
 
 	return result, nil
+}
+
+// CheckSliceCompatibility checks if two multidimensional slices are compatible for multiplication.
+// It returns true if the slices are compatible, false otherwise.
+func CheckSliceCompatibility(x, y interface{}) bool {
+	xVal := reflect.ValueOf(x)
+	yVal := reflect.ValueOf(y)
+
+	// Check if both inputs are slices
+	if xVal.Kind() != reflect.Slice || yVal.Kind() != reflect.Slice {
+		return false
+	}
+
+	// Get the number of dimensions for both slices
+	xDim := getSliceDimension(xVal)
+	yDim := getSliceDimension(yVal)
+
+	// Check if both slices have at least two dimensions
+	if xDim < 2 || yDim < 2 {
+		return false
+	}
+
+	// Get the last dimension of the first slice and the second-to-last dimension of the second slice
+	xLastDim := getLastDimension(xVal)
+	ySecondLastDim := getSecondLastDimension(yVal)
+
+	// Check if the dimensions are compatible for multiplication
+	return xLastDim == ySecondLastDim
+}
+
+// getSliceDimension returns the number of dimensions of a slice.
+func getSliceDimension(v reflect.Value) int {
+	dim := 0
+	for v.Kind() == reflect.Slice {
+		dim++
+		v = v.Index(0)
+	}
+	return dim
+}
+
+// getLastDimension returns the size of the last dimension of a slice.
+func getLastDimension(v reflect.Value) int {
+	if v.Kind() != reflect.Slice {
+		return 0
+	}
+	for v.Kind() == reflect.Slice {
+		if v.Index(0).Kind() != reflect.Slice {
+			return v.Len()
+		}
+		v = v.Index(0)
+	}
+	return 0
+}
+
+// getSecondLastDimension returns the size of the second-to-last dimension of a slice.
+func getSecondLastDimension(v reflect.Value) int {
+	t := v
+	if v.Kind() != reflect.Slice {
+		return 0
+	}
+	// v = v.Index(0)
+	i := 0
+	for v.Kind() == reflect.Slice {
+		if v.Index(0).Kind() != reflect.Slice {
+			for j := 0; j < i-1; j++ {
+				t = t.Index(0)
+			}
+		}
+		v = v.Index(0)
+		i++
+	}
+	return t.Len()
 }
