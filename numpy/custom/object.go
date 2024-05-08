@@ -15,19 +15,23 @@ func Shape(x interface{}) (interface{}, error) {
 	if xType.Kind() == reflect.Slice {
 		shape = append(shape, xVal.Len())
 
-		// Check for multi-dimensional slices
-		for {
-			// Get the first element of the slice
-			firstElem := xVal.Index(0)
+		if xVal.Len() > 0 {
+			// Check for multi-dimensional slices
+			for {
+				// Get the first element of the slice
+				firstElem := xVal.Index(0)
 
-			// If the first element is also a slice, increment dimensions and continue checking
-			if firstElem.Kind() == reflect.Slice {
-				shape = append(shape, firstElem.Len())
-				xVal = firstElem
-			} else {
-				// If the first element is not a slice, break the loop
-				break
+				// If the first element is also a slice, increment dimensions and continue checking
+				if firstElem.Kind() == reflect.Slice {
+					shape = append(shape, firstElem.Len())
+					xVal = firstElem
+				} else {
+					// If the first element is not a slice, break the loop
+					break
+				}
 			}
+		} else {
+			return shape, nil
 		}
 	} else {
 		return 0., fmt.Errorf("x must be of type slice.\n\tx: %v", xType)

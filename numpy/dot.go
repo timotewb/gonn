@@ -121,24 +121,43 @@ func multiplyAnyDimSliceBySlice(x, y interface{}) (interface{}, error) {
 	// create output slice
 	result := createMultiDimSlice(reflect.ValueOf(xShape).Len() - 1)
 
-	return loopOverAnyDimSlice(xVal, yVal, &result)
-	// return 0., nil
+	fmt.Println("result:", result)
+	rShape, err := custom.Shape(result)
+	if err != nil {
+		return 0., err
+	}
+	fmt.Println("rShape:", rShape)
+
+	err = loopOverAnyDimSlice(xVal, yVal, []int{}, &result)
+	if err != nil {
+		return 0., err
+	}
+	return 0., nil
 }
 
-func loopOverAnyDimSlice(x, y reflect.Value, r interface{}) (interface{}, error) {
+func loopOverAnyDimSlice(x, y reflect.Value, p []int, r interface{}) error {
+
+	var s float64
 
 	// check first item
 	if x.Index(0).Kind() == reflect.Slice {
+		fmt.Println("x.Len():", x.Len())
+		fmt.Println("")
 		for i := 0; i < x.Len(); i++ {
-			return loopOverAnyDimSlice(x.Index(i), y, &r)
+			err := loopOverAnyDimSlice(x.Index(i), y, append(p, i), &r)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		for i := 0; i < x.Len(); i++ {
-			// but where are we in the result array/dimension?????
+			s = s + (x.Index(i).Float() * y.Index(i).Float())
 		}
+		// with the position and value, update r
+		fmt.Println(p, s)
+		return nil
 	}
-
-	return 0., nil
+	return nil
 }
 
 // createMultiDimSlice creates a multi-dimensional slice of float64 with the specified number of dimensions.
@@ -149,11 +168,12 @@ func createMultiDimSlice(dimensions int) interface{} {
 
 	// Create a slice of float64 for the last dimension
 	if dimensions == 1 {
-		return []float64{}
+		return []float64{0.}
 	}
 
 	// Recursively create a slice of the next dimension
 	nextDimension := createMultiDimSlice(dimensions - 1)
+	fmt.Println("nextDimension:", nextDimension)
 
 	// Create a slice of the current dimension, filled with the next dimension's slices
 	sliceType := reflect.SliceOf(reflect.TypeOf(nextDimension))
