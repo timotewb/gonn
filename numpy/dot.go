@@ -119,15 +119,13 @@ func multiplyAnyDimSliceBySlice(x, y interface{}) (interface{}, error) {
 	}
 
 	// create output slice
-	result := createMultiDimSlice(reflect.ValueOf(xShape).Len() - 1)
+	result := createMultiDimSlice(xShape)
 
 	fmt.Println("result:", result)
-	rShape, err := custom.Shape(result)
-	if err != nil {
-		return 0., err
-	}
-	fmt.Println("rShape:", rShape)
 
+	fmt.Println("----------------------------------------------------------------------------------------")
+	fmt.Println("loopOverAnyDimSlice:")
+	fmt.Println("----------------------------------------------------------------------------------------")
 	err = loopOverAnyDimSlice(xVal, yVal, []int{}, &result)
 	if err != nil {
 		return 0., err
@@ -135,7 +133,7 @@ func multiplyAnyDimSliceBySlice(x, y interface{}) (interface{}, error) {
 	return 0., nil
 }
 
-func loopOverAnyDimSlice(x, y reflect.Value, p []int, r interface{}) error {
+func loopOverAnyDimSlice(x, y reflect.Value, p []int, r *interface{}) error {
 
 	var s float64
 
@@ -144,7 +142,7 @@ func loopOverAnyDimSlice(x, y reflect.Value, p []int, r interface{}) error {
 		fmt.Println("x.Len():", x.Len())
 		fmt.Println("")
 		for i := 0; i < x.Len(); i++ {
-			err := loopOverAnyDimSlice(x.Index(i), y, append(p, i), &r)
+			err := loopOverAnyDimSlice(x.Index(i), y, append(p, i), r)
 			if err != nil {
 				return err
 			}
@@ -154,30 +152,91 @@ func loopOverAnyDimSlice(x, y reflect.Value, p []int, r interface{}) error {
 			s = s + (x.Index(i).Float() * y.Index(i).Float())
 		}
 		// with the position and value, update r
-		fmt.Println(p, s)
+		fmt.Println("p, s:", p, s)
+		err := updateValueInMultiDimArray(r, p, s)
+		if err != nil {
+			fmt.Println(err)
+			return nil
+		}
+
+		fmt.Println(r)
+
 		return nil
 	}
 	return nil
 }
 
-// createMultiDimSlice creates a multi-dimensional slice of float64 with the specified number of dimensions.
-func createMultiDimSlice(dimensions int) interface{} {
-	if dimensions <= 0 {
+func updateValueInMultiDimArray(r interface{}, p []int, newValue interface{}) error {
+	// Convert r to a reflect.Value so we can manipulate it
+	rVal := reflect.ValueOf(r)
+
+	// Unwrap r if it's a pointer to an interface
+	if rVal.Kind() == reflect.Ptr {
+		rVal = rVal.Elem()
+	}
+
+	// Ensure r is a multi-dimensional slice
+	if rVal.Kind() != reflect.Slice {
+		return fmt.Errorf("r must be a multi-dimensional slice")
+	}
+
+	// Navigate to the target position using the positions in p
+	current := rVal
+	for _, pos := range p {
+		if current.Kind() != reflect.Slice {
+			return fmt.Errorf("position %d is not a slice", pos)
+		}
+		current = current.Index(pos)
+	}
+
+	// Check if the target is a slice itself (indicating a deeper level needs to be accessed)
+	if current.Kind() == reflect.Slice {
+		return fmt.Errorf("target position is a slice, not a value")
+	}
+
+	// Convert newValue to the appropriate type
+	targetType := current.Type()
+	newValueVal := reflect.New(targetType).Elem()
+	newValueVal.Set(reflect.ValueOf(newValue))
+
+	// Update the value at the target position
+	if current.CanSet() {
+		current.Set(newValueVal)
+	} else {
+		return fmt.Errorf("cannot set value: target is unaddressable")
+	}
+
+	return nil
+}
+
+func createMultiDimSlice(shape interface{}) interface{} {
+	var child interface{}
+
+	dimSlice, ok := shape.([]int)
+	if !ok {
+		// Handle the error if shape is not a slice of int
+		// For example, return an error or a default value
 		return nil
 	}
+	fmt.Println("dimSlice:", dimSlice)
+	// Remove the last element from dimSlice
+	dimSlice = dimSlice[:len(dimSlice)-1]
 
-	// Create a slice of float64 for the last dimension
-	if dimensions == 1 {
-		return []float64{0.}
+	fmt.Println("dimSlice:", dimSlice)
+
+	// Start with the innermost slice as a slice of floats
+	child = make([]float64, dimSlice[len(dimSlice)-1])
+
+	// Loop backwards through the dimensions to build the nested structure
+	for i := len(dimSlice) - 2; i >= 0; i-- {
+		parent := make([]interface{}, dimSlice[i])
+		for j := 0; j < dimSlice[i]; j++ {
+			parent[j] = child
+		}
+		child = parent
 	}
 
-	// Recursively create a slice of the next dimension
-	nextDimension := createMultiDimSlice(dimensions - 1)
-	fmt.Println("nextDimension:", nextDimension)
-
-	// Create a slice of the current dimension, filled with the next dimension's slices
-	sliceType := reflect.SliceOf(reflect.TypeOf(nextDimension))
-	return reflect.MakeSlice(sliceType, 0, 0).Interface()
+	return child
 }
 
 // multiplyArray performs element-wise multiplication of two 1D slices of the same length.
