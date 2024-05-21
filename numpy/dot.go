@@ -95,8 +95,8 @@ func multiplyAnyDimSliceBySlice(x, y interface{}) (interface{}, error) {
 
 	xVal := reflect.ValueOf(x)
 	yVal := reflect.ValueOf(y)
-	xType := reflect.TypeOf(x)
-	yType := reflect.TypeOf(y)
+	// xType := reflect.TypeOf(x)
+	// yType := reflect.TypeOf(y)
 
 	xShape, err := custom.Shape(x)
 	if err != nil {
@@ -107,11 +107,6 @@ func multiplyAnyDimSliceBySlice(x, y interface{}) (interface{}, error) {
 		return nil, err
 	}
 
-	fmt.Printf("xType %v\n", xType)
-	fmt.Printf("yType %v\n", yType)
-	fmt.Printf("xShape %v\n", xShape)
-	fmt.Printf("yShape %v\n", yShape)
-
 	// check compatibility
 	_, err = logicfunctions.ShapeCompatible(xShape, yShape)
 	if err != nil {
@@ -121,16 +116,12 @@ func multiplyAnyDimSliceBySlice(x, y interface{}) (interface{}, error) {
 	// create output slice
 	result := createMultiDimSlice(xShape)
 
-	fmt.Println("result:", result)
-
-	fmt.Println("----------------------------------------------------------------------------------------")
-	fmt.Println("loopOverAnyDimSlice:")
-	fmt.Println("----------------------------------------------------------------------------------------")
+	// calculate
 	err = loopOverAnyDimSlice(xVal, yVal, []int{}, &result)
 	if err != nil {
 		return 0., err
 	}
-	return 0., nil
+	return result, nil
 }
 
 func loopOverAnyDimSlice(x, y reflect.Value, p []int, r *interface{}) error {
@@ -139,8 +130,6 @@ func loopOverAnyDimSlice(x, y reflect.Value, p []int, r *interface{}) error {
 
 	// check first item
 	if x.Index(0).Kind() == reflect.Slice {
-		fmt.Println("x.Len():", x.Len())
-		fmt.Println("")
 		for i := 0; i < x.Len(); i++ {
 			err := loopOverAnyDimSlice(x.Index(i), y, append(p, i), r)
 			if err != nil {
@@ -152,14 +141,10 @@ func loopOverAnyDimSlice(x, y reflect.Value, p []int, r *interface{}) error {
 			s = s + (x.Index(i).Float() * y.Index(i).Float())
 		}
 		// with the position and value, update r
-		fmt.Println("p, s:", p, s)
 		err := updateValueInMultiDimArray(r, p, s)
 		if err != nil {
-			fmt.Println(err)
-			return nil
+			return fmt.Errorf("error when updating result array %v", err)
 		}
-
-		fmt.Println(r)
 
 		return nil
 	}
@@ -172,40 +157,28 @@ func updateValueInMultiDimArray(r interface{}, p []int, newValue interface{}) er
 
 	// Unwrap r if it's a pointer to an interface
 	if rVal.Kind() == reflect.Ptr {
-		rVal = rVal.Elem()
+		rVal = rVal.Elem().Elem()
 	}
 
 	// Ensure r is a multi-dimensional slice
 	if rVal.Kind() != reflect.Slice {
 		return fmt.Errorf("r must be a multi-dimensional slice")
 	}
-
-	// Navigate to the target position using the positions in p
 	current := rVal
-	for _, pos := range p {
-		if current.Kind() != reflect.Slice {
-			return fmt.Errorf("position %d is not a slice", pos)
+	for i := 0; i < len(p); i++ {
+		if current.Kind() == reflect.Interface {
+			current = current.Elem()
 		}
-		current = current.Index(pos)
+		if current.Index(p[i]).Kind() == reflect.Float64 {
+			current.Index(p[i]).Set(reflect.ValueOf(newValue))
+		} else {
+			if current.Index(p[i]).Elem().Kind() == reflect.Slice {
+				current = current.Index(p[i]).Elem()
+			} else {
+				current.Index(p[i]).Set(reflect.ValueOf(newValue))
+			}
+		}
 	}
-
-	// Check if the target is a slice itself (indicating a deeper level needs to be accessed)
-	if current.Kind() == reflect.Slice {
-		return fmt.Errorf("target position is a slice, not a value")
-	}
-
-	// Convert newValue to the appropriate type
-	targetType := current.Type()
-	newValueVal := reflect.New(targetType).Elem()
-	newValueVal.Set(reflect.ValueOf(newValue))
-
-	// Update the value at the target position
-	if current.CanSet() {
-		current.Set(newValueVal)
-	} else {
-		return fmt.Errorf("cannot set value: target is unaddressable")
-	}
-
 	return nil
 }
 
@@ -218,11 +191,8 @@ func createMultiDimSlice(shape interface{}) interface{} {
 		// For example, return an error or a default value
 		return nil
 	}
-	fmt.Println("dimSlice:", dimSlice)
 	// Remove the last element from dimSlice
 	dimSlice = dimSlice[:len(dimSlice)-1]
-
-	fmt.Println("dimSlice:", dimSlice)
 
 	// Start with the innermost slice as a slice of floats
 	child = make([]float64, dimSlice[len(dimSlice)-1])
