@@ -171,11 +171,10 @@ func updateValueInMultiDimArray(r interface{}, p []int, newValue interface{}) er
 		}
 		if current.Index(p[i]).Kind() == reflect.Float64 {
 			current.Index(p[i]).Set(reflect.ValueOf(newValue))
+			return nil
 		} else {
 			if current.Index(p[i]).Elem().Kind() == reflect.Slice {
 				current = current.Index(p[i]).Elem()
-			} else {
-				current.Index(p[i]).Set(reflect.ValueOf(newValue))
 			}
 		}
 	}
@@ -201,11 +200,13 @@ func createMultiDimSlice(shape interface{}) interface{} {
 	for i := len(dimSlice) - 2; i >= 0; i-- {
 		parent := make([]interface{}, dimSlice[i])
 		for j := 0; j < dimSlice[i]; j++ {
-			parent[j] = child
+			// make a copy of the child to avoid pointer
+			copiedChild := make([]float64, len(child.([]float64)))
+			copy(copiedChild, child.([]float64))
+			parent[j] = copiedChild
 		}
 		child = parent
 	}
-
 	return child
 }
 
