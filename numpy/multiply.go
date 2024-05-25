@@ -28,9 +28,6 @@ import (
 // Returns:
 // - interface: float64, slice, slice of slice(s)
 func Multiply(x interface{}, y interface{}) interface{} {
-	// 0 = invalid type
-	// 1 = slice of float64
-	// 2 = single float64
 	var xType int
 	var yType int
 	if app.CheckIsSliceOfType(reflect.TypeOf(x), reflect.Float64) {
@@ -50,7 +47,6 @@ func Multiply(x interface{}, y interface{}) interface{} {
 		return nil
 	}
 
-	// process
 	if xType == 1 && yType == 1 {
 		if !app.CheckSlicesOfSameShape(reflect.ValueOf(x), reflect.ValueOf(y)) {
 			log.Fatal("Error: x and y must be the same shape.")
