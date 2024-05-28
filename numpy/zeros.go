@@ -25,7 +25,7 @@ package numpy
 // Errors:
 //
 //	If the shape parameter cannot be cast to a slice of integers, the function returns nil.
-func Zeros(shape interface{}) interface{} {
+func Zeros(shape interface{}, removeLast bool) interface{} {
 	var child interface{}
 
 	dimSlice, ok := shape.([]int)
@@ -35,7 +35,9 @@ func Zeros(shape interface{}) interface{} {
 		return nil
 	}
 	// Remove the last element from dimSlice
-	dimSlice = dimSlice[:len(dimSlice)-1]
+	if removeLast {
+		dimSlice = dimSlice[:len(dimSlice)-1]
+	}
 
 	// Start with the innermost slice as a slice of floats
 	child = make([]float64, dimSlice[len(dimSlice)-1])
