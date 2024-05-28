@@ -8,6 +8,7 @@ import (
 	"github.com/timotewb/gonn/numpy/custom/logicfunctions"
 )
 
+// Add sums slice and float together
 func Add(x, y interface{}) (interface{}, error) {
 
 	if reflect.TypeOf(x).Kind() == reflect.Slice || reflect.TypeOf(y).Kind() == reflect.Float64 {

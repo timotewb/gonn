@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define the version number
-VERSION="v0.0.9"
+VERSION="v0.0.10"
 
 # Commit the changes with the version number
 git commit -am "$VERSION"
